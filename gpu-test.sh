@@ -3,18 +3,25 @@
 # GPU Concurrent Testing Script for RunPod
 # Tests concurrent camera streams using NVIDIA GPU encoding
 
-# Configuration
+# Configuration - Easily customizable parameters
 RESULTS_DIR="./test_results"
-TEST_DURATION=60  # 1 minute per test
-SAMPLE_INTERVAL=5  # Sample every 5 seconds
+TEST_DURATION=${TEST_DURATION:-60}  # Seconds per test (default: 60s)
+SAMPLE_INTERVAL=${SAMPLE_INTERVAL:-5}  # Monitoring interval (default: 5s)
 LOG_FILE="${RESULTS_DIR}/gpu_concurrent.log"
 CSV_FILE="${RESULTS_DIR}/gpu_concurrent_results.csv"
 TEMP_DIR="${RESULTS_DIR}/temp_tests_gpu"
-DEBUG_MODE=${DEBUG:-0}
+DEBUG_MODE=${DEBUG:-0}  # Set DEBUG=1 for verbose output
 
-# Test configuration
-CONCURRENT_TESTS=(2 5 10 20 30 50 75 100 125 150)
-MAX_RETRIES=3
+# Test configuration - Modify these arrays to change test parameters
+CONCURRENT_TESTS=(${CONCURRENT_TESTS:-"2 5 10 20 30 50 75 100 125 150"})
+MAX_RETRIES=${MAX_RETRIES:-3}
+
+# Quick test mode - Set QUICK_TEST=1 for faster testing
+if [[ "${QUICK_TEST:-0}" == "1" ]]; then
+    CONCURRENT_TESTS=(2 5 10 20)
+    TEST_DURATION=30
+    log "Quick test mode enabled: 4 tests x 30 seconds each"
+fi
 
 # GPU encoding parameters
 GPU_ENCODER="h264_nvenc"  # or hevc_nvenc for H.265
@@ -317,10 +324,45 @@ setup() {
     log "Setup complete!"
 }
 
+# Show test configuration
+show_test_config() {
+    echo -e "${BLUE}Test Configuration Summary${NC}"
+    echo "=========================="
+    echo "📊 Concurrent streams: ${CONCURRENT_TESTS[*]}"
+    echo "⏱️  Duration per test: ${TEST_DURATION} seconds"
+    echo "📝 Monitoring interval: ${SAMPLE_INTERVAL} seconds"
+    echo "🎥 GPU encoder: ${GPU_ENCODER}"
+    echo "⚡ GPU preset: ${GPU_PRESET}"
+    echo "🎯 Quality (CQ): ${GPU_CQ}"
+    echo ""
+    echo "📁 Results will be saved to:"
+    echo "   📊 CSV: ${CSV_FILE}"
+    echo "   📝 Log: ${LOG_FILE}"
+    echo "   📂 Temp: ${TEMP_DIR}"
+    echo ""
+    
+    # Calculate total estimated time
+    local total_tests=${#CONCURRENT_TESTS[@]}
+    local total_time=$(( (total_tests * TEST_DURATION) + 60 )) # +60s for setup/cleanup
+    local minutes=$(( total_time / 60 ))
+    local seconds=$(( total_time % 60 ))
+    echo "⏰ Estimated total time: ${minutes}m ${seconds}s"
+    echo "💾 Expected storage usage: ~$((total_tests * 100))MB"
+    echo ""
+}
+
 # Main execution
 main() {
     echo -e "${BLUE}GPU Concurrent Stream Testing${NC}"
     echo "=============================="
+    
+    show_test_config
+    
+    # Ask for confirmation unless AUTO_START is set
+    if [[ "${AUTO_START:-0}" != "1" ]]; then
+        echo -e "${YELLOW}Press ENTER to continue or Ctrl+C to abort...${NC}"
+        read
+    fi
     
     setup
     
@@ -375,6 +417,45 @@ trap cleanup INT TERM
 # Check dependencies
 command -v ffmpeg >/dev/null 2>&1 || { error "ffmpeg is required"; exit 1; }
 command -v bc >/dev/null 2>&1 || { error "bc is required"; exit 1; }
+
+# Show usage information
+show_usage() {
+    echo "GPU FFmpeg Concurrent Stream Test"
+    echo "================================="
+    echo ""
+    echo "Usage: $0 [options]"
+    echo ""
+    echo "Environment Variables:"
+    echo "  TEST_DURATION=N        Duration per test in seconds (default: 60)"
+    echo "  SAMPLE_INTERVAL=N      Monitoring interval in seconds (default: 5)"
+    echo "  CONCURRENT_TESTS='...' Space-separated list of concurrent counts"
+    echo "  QUICK_TEST=1          Run quick test (4 tests x 30s each)"
+    echo "  DEBUG=1               Enable debug output"
+    echo "  AUTO_START=1          Skip confirmation prompt"
+    echo ""
+    echo "Examples:"
+    echo "  # Default test (10 tests, 60s each)"
+    echo "  $0"
+    echo ""
+    echo "  # Quick test for development"
+    echo "  QUICK_TEST=1 $0"
+    echo ""
+    echo "  # Custom concurrent counts"
+    echo "  CONCURRENT_TESTS='1 5 25 50' $0"
+    echo ""
+    echo "  # Short duration test"
+    echo "  TEST_DURATION=30 $0"
+    echo ""
+    echo "  # Auto-start without confirmation"
+    echo "  AUTO_START=1 $0"
+    echo ""
+}
+
+# Handle command line arguments
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+    show_usage
+    exit 0
+fi
 
 # Run main
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
