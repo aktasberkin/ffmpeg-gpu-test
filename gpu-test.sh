@@ -13,14 +13,20 @@ TEMP_DIR="${RESULTS_DIR}/temp_tests_gpu"
 DEBUG_MODE=${DEBUG:-0}  # Set DEBUG=1 for verbose output
 
 # Test configuration - Modify these arrays to change test parameters
-CONCURRENT_TESTS=(${CONCURRENT_TESTS:-"2 5 10 20 30 50 75 100 125 150"})
+if [[ -n "${CONCURRENT_TESTS}" ]]; then
+    # Convert string to array
+    read -ra CONCURRENT_TESTS <<< "${CONCURRENT_TESTS}"
+else
+    # Default values
+    CONCURRENT_TESTS=(2 5 10 20 30 50 75 100 125 150)
+fi
 MAX_RETRIES=${MAX_RETRIES:-3}
 
 # Quick test mode - Set QUICK_TEST=1 for faster testing
 if [[ "${QUICK_TEST:-0}" == "1" ]]; then
     CONCURRENT_TESTS=(2 5 10 20)
     TEST_DURATION=30
-    log "Quick test mode enabled: 4 tests x 30 seconds each"
+    echo "[INFO] Quick test mode enabled: 4 tests x 30 seconds each"
 fi
 
 # GPU encoding parameters
