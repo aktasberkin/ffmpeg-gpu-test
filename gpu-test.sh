@@ -262,7 +262,7 @@ run_concurrent_gpu_test() {
     local pids=()
     local success_count=0
     
-    # Start concurrent processes
+    # Start concurrent processes with staggered launch
     for ((i=1; i<=concurrent_count; i++)); do
         local stream_input=$(get_stream_url "$i")
         
@@ -276,9 +276,20 @@ run_concurrent_gpu_test() {
         
         pids+=($!)
         
-        # Small delay to avoid overwhelming the system
-        if [[ $((i % 10)) -eq 0 ]]; then
-            sleep 0.5
+        # Staggered start to prevent fork bomb
+        if [[ $concurrent_count -gt 10 ]]; then
+            if [[ $((i % 5)) -eq 0 ]]; then
+                sleep 1  # Longer delay for high concurrent counts
+            else
+                sleep 0.2  # Short delay between each process
+            fi
+        elif [[ $concurrent_count -gt 5 ]]; then
+            sleep 0.1  # Minimal delay for medium counts
+        fi
+        
+        # Progress indicator for large tests
+        if [[ $concurrent_count -gt 20 ]] && [[ $((i % 10)) -eq 0 ]]; then
+            log "Started $i/$concurrent_count processes..."
         fi
     done
     
