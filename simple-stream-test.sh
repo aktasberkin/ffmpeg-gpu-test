@@ -25,7 +25,7 @@ timeout 15 ffmpeg -y \
     -i "$CAMERA_URL" \
     -t 10 \
     -c:v libx264 \
-    -c:a aac \
+    -an \
     ./stream_test/basic_cpu_test.mp4
 
 if [[ -f "./stream_test/basic_cpu_test.mp4" ]]; then
@@ -51,6 +51,7 @@ timeout 15 ffmpeg -y \
     -t 10 \
     -c:v h264_nvenc \
     -preset fast \
+    -an \
     ./stream_test/basic_gpu_test.mp4
 
 if [[ -f "./stream_test/basic_gpu_test.mp4" ]]; then
@@ -70,10 +71,12 @@ echo "4. CPU with exact working format (10 seconds)..."
 echo "================================================"
 
 timeout 15 ffmpeg -loglevel info \
+    -rtsp_transport tcp \
     -i "$CAMERA_URL" \
     -t 10 \
     -vf scale=1280:720 \
     -c:v libx264 -crf 36 -preset medium \
+    -an \
     -f hls \
     -hls_time 6 \
     -hls_flags append_list \

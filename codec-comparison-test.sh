@@ -28,6 +28,7 @@ CPU_CMD="timeout $((TEST_DURATION + 30)) ffmpeg -loglevel info \
     -t $TEST_DURATION \
     -vf scale=1280:720 \
     -c:v libx264 -crf 36 -preset medium \
+    -vcodec libx264 \
     -an \
     -f hls \
     -hls_time 6 \
