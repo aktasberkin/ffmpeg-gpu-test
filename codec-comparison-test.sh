@@ -143,7 +143,7 @@ run_ffmpeg_test "GPU encoding" "$GPU_LOG_FILE" \
     -hwaccel_output_format cuda \
     -i "$CAMERA_URL" \
     -t $TEST_DURATION \
-    -vf "scale_cuda=854x480" \
+    -vf "scale_cuda=854:480" \
     -c:v h264_nvenc \
     -preset p6 \
     -rc cbr \
