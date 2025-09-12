@@ -342,12 +342,15 @@ run_single_gpu_test() {
     
     # Build FFmpeg command with NVIDIA hardware acceleration
     # Output both HLS and MP4 for quality checking
+    # Using auto codec detection and TCP transport for better compatibility
     local ffmpeg_cmd="ffmpeg -hide_banner -loglevel info \
+        -rtsp_transport tcp \
+        -stimeout 10000000 \
+        -analyzeduration 5000000 \
+        -probesize 10000000 \
         -hwaccel cuda \
         -hwaccel_device $gpu_index \
-        -c:v h264_cuvid \
-        -analyzeduration 3000000 \
-        -probesize 5000000 \
+        -hwaccel_output_format cuda \
         -i \"$camera_url\" \
         -t $TEST_DURATION \
         -vf \"scale_cuda=1280:720\" \
