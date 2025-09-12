@@ -15,31 +15,101 @@ echo "Camera: $CAMERA_URL"
 echo "Duration: ${TEST_DURATION}s"
 echo ""
 
+# Test RTSP connection first
+echo "🔍 Testing RTSP stream connectivity..."
+timeout 10 ffprobe -rtsp_transport tcp -v quiet -print_format json -show_streams "$CAMERA_URL" > /dev/null 2>&1
+if [[ $? -eq 0 ]]; then
+    echo "✅ RTSP stream accessible"
+    echo ""
+else
+    echo "❌ RTSP stream not accessible or timed out"
+    echo "   Please check:"
+    echo "   - Camera URL: $CAMERA_URL"
+    echo "   - Network connectivity"
+    echo "   - Camera credentials"
+    echo ""
+    exit 1
+fi
+
+# Function to run FFmpeg with better progress output and error handling
+run_ffmpeg_test() {
+    local test_name="$1"
+    local log_file="$2"
+    shift 2
+    local ffmpeg_args=("$@")
+    
+    echo "Starting $test_name..."
+    echo "Log file: $log_file"
+    echo "Command: timeout $((TEST_DURATION + 15)) ffmpeg ${ffmpeg_args[*]}"
+    echo ""
+    
+    # Run FFmpeg with progress output
+    timeout $((TEST_DURATION + 15)) ffmpeg \
+        "${ffmpeg_args[@]}" \
+        -progress pipe:1 \
+        > "$log_file" 2>&1 &
+    
+    local ffmpeg_pid=$!
+    local start_time=$(date +%s)
+    
+    # Monitor progress
+    while kill -0 "$ffmpeg_pid" 2>/dev/null; do
+        local current_time=$(date +%s)
+        local elapsed=$((current_time - start_time))
+        
+        if [[ $elapsed -gt $((TEST_DURATION + 10)) ]]; then
+            echo "⚠️  Process taking longer than expected (${elapsed}s), but still running..."
+        fi
+        
+        # Show progress every 5 seconds
+        if [[ $((elapsed % 5)) -eq 0 ]] && [[ $elapsed -gt 0 ]]; then
+            echo "⏱️  Elapsed: ${elapsed}s / ${TEST_DURATION}s target"
+        fi
+        
+        sleep 1
+    done
+    
+    wait "$ffmpeg_pid"
+    local exit_code=$?
+    
+    echo ""
+    if [[ $exit_code -eq 0 ]]; then
+        echo "✅ $test_name completed successfully!"
+    elif [[ $exit_code -eq 124 ]]; then
+        echo "⏰ $test_name timed out after $((TEST_DURATION + 15)) seconds"
+    else
+        echo "❌ $test_name failed with exit code $exit_code"
+        echo "Last 10 lines of log:"
+        tail -10 "$log_file" 2>/dev/null | sed 's/^/    /'
+    fi
+    echo ""
+    
+    return $exit_code
+}
+
 # Test 1: CPU libx264 (Original working command with RTSP fixes)
 echo "1. Testing CPU (libx264) - Original Command"
 echo "============================================"
 
-CPU_CMD="timeout $((TEST_DURATION + 30)) ffmpeg -loglevel info \
+CPU_LOG_FILE="${OUTPUT_DIR}/cpu_test.log"
+
+run_ffmpeg_test "CPU encoding" "$CPU_LOG_FILE" \
+    -loglevel info \
     -rtsp_transport tcp \
-    -stimeout 10000000 \
-    -analyzeduration 3000000 \
-    -probesize 5000000 \
-    -i \"$CAMERA_URL\" \
+    -stimeout 5000000 \
+    -analyzeduration 1000000 \
+    -probesize 2000000 \
+    -i "$CAMERA_URL" \
     -t $TEST_DURATION \
     -vf scale=1280:720 \
     -c:v libx264 -crf 36 -preset medium \
-    -vcodec libx264 \
     -an \
     -f hls \
     -hls_time 6 \
     -hls_flags append_list \
-    -hls_segment_filename \"${OUTPUT_DIR}/cpu_segment_%03d.ts\" \
-    \"${OUTPUT_DIR}/cpu_playlist.m3u8\""
+    -hls_segment_filename "${OUTPUT_DIR}/cpu_segment_%03d.ts" \
+    "${OUTPUT_DIR}/cpu_playlist.m3u8"
 
-echo "Command: $CPU_CMD"
-echo ""
-
-eval "$CPU_CMD"
 CPU_EXIT_CODE=$?
 
 if [[ $CPU_EXIT_CODE -eq 0 ]]; then
@@ -61,16 +131,19 @@ fi
 echo "2. Testing GPU (h264_nvenc) - Current Script"
 echo "============================================="
 
-GPU_CMD="timeout $((TEST_DURATION + 30)) ffmpeg -loglevel info \
+GPU_LOG_FILE="${OUTPUT_DIR}/gpu_test.log"
+
+run_ffmpeg_test "GPU encoding" "$GPU_LOG_FILE" \
+    -loglevel info \
     -rtsp_transport tcp \
-    -stimeout 10000000 \
-    -analyzeduration 3000000 \
-    -probesize 5000000 \
+    -stimeout 5000000 \
+    -analyzeduration 1000000 \
+    -probesize 2000000 \
     -hwaccel cuda \
     -hwaccel_output_format cuda \
-    -i \"$CAMERA_URL\" \
+    -i "$CAMERA_URL" \
     -t $TEST_DURATION \
-    -vf \"scale_cuda=854x480\" \
+    -vf "scale_cuda=854x480" \
     -c:v h264_nvenc \
     -preset p6 \
     -rc cbr \
@@ -86,13 +159,9 @@ GPU_CMD="timeout $((TEST_DURATION + 30)) ffmpeg -loglevel info \
     -f hls \
     -hls_time 6 \
     -hls_flags append_list \
-    -hls_segment_filename \"${OUTPUT_DIR}/gpu_segment_%03d.ts\" \
-    \"${OUTPUT_DIR}/gpu_playlist.m3u8\""
+    -hls_segment_filename "${OUTPUT_DIR}/gpu_segment_%03d.ts" \
+    "${OUTPUT_DIR}/gpu_playlist.m3u8"
 
-echo "Command: $GPU_CMD"
-echo ""
-
-eval "$GPU_CMD"
 GPU_EXIT_CODE=$?
 
 if [[ $GPU_EXIT_CODE -eq 0 ]]; then
@@ -114,16 +183,19 @@ fi
 echo "3. Testing GPU (h264_nvenc) - CPU Settings Equivalent"
 echo "====================================================="
 
-GPU_CPU_EQUIV_CMD="timeout $((TEST_DURATION + 30)) ffmpeg -loglevel info \
+GPU_EQUIV_LOG_FILE="${OUTPUT_DIR}/gpu_equiv_test.log"
+
+run_ffmpeg_test "GPU (CPU equivalent)" "$GPU_EQUIV_LOG_FILE" \
+    -loglevel info \
     -rtsp_transport tcp \
-    -stimeout 10000000 \
-    -analyzeduration 3000000 \
-    -probesize 5000000 \
+    -stimeout 5000000 \
+    -analyzeduration 1000000 \
+    -probesize 2000000 \
     -hwaccel cuda \
     -hwaccel_output_format cuda \
-    -i \"$CAMERA_URL\" \
+    -i "$CAMERA_URL" \
     -t $TEST_DURATION \
-    -vf \"scale_cuda=1280:720\" \
+    -vf "scale_cuda=1280:720" \
     -c:v h264_nvenc \
     -preset p4 \
     -rc constqp \
@@ -132,13 +204,9 @@ GPU_CPU_EQUIV_CMD="timeout $((TEST_DURATION + 30)) ffmpeg -loglevel info \
     -f hls \
     -hls_time 6 \
     -hls_flags append_list \
-    -hls_segment_filename \"${OUTPUT_DIR}/gpu_equiv_segment_%03d.ts\" \
-    \"${OUTPUT_DIR}/gpu_equiv_playlist.m3u8\""
+    -hls_segment_filename "${OUTPUT_DIR}/gpu_equiv_segment_%03d.ts" \
+    "${OUTPUT_DIR}/gpu_equiv_playlist.m3u8"
 
-echo "Command: $GPU_CPU_EQUIV_CMD"
-echo ""
-
-eval "$GPU_CPU_EQUIV_CMD"
 GPU_EQUIV_EXIT_CODE=$?
 
 if [[ $GPU_EQUIV_EXIT_CODE -eq 0 ]]; then
