@@ -338,9 +338,10 @@ run_single_gpu_test() {
     local monitor_file="${test_temp_dir}/monitor.csv"
     local gpu_monitor_file="${test_temp_dir}/gpu_monitor.csv"
     local playlist_file="${test_temp_dir}/playlist.m3u8"
+    local output_mp4="${test_temp_dir}/output_${concurrent_id}.mp4"
     
     # Build FFmpeg command with NVIDIA hardware acceleration
-    # Using copy codec to minimize processing and test maximum throughput
+    # Output both HLS and MP4 for quality checking
     local ffmpeg_cmd="ffmpeg -hide_banner -loglevel info \
         -hwaccel cuda \
         -hwaccel_device $gpu_index \
@@ -359,12 +360,9 @@ run_single_gpu_test() {
         -g 60 \
         -gpu $gpu_index \
         -an \
-        -f hls \
-        -hls_time 30 \
-        -hls_flags append_list \
-        -hls_list_size 0 \
-        -hls_segment_filename \"${test_temp_dir}/segment_%d.ts\" \
-        \"$playlist_file\""
+        -f tee \
+        -map 0:v \
+        \"[f=hls:hls_time=10:hls_segment_filename=${test_temp_dir}/segment_%d.ts]${playlist_file}|[f=mp4]${output_mp4}\""
     
     debug_log "Starting FFmpeg with command: $ffmpeg_cmd"
     
@@ -462,6 +460,17 @@ run_single_gpu_test() {
     # Write results to CSV
     local csv_line="${test_id}_${concurrent_id},concurrent,$gpu_index,$DEFAULT_CODEC,$DEFAULT_PRESET,${concurrent_id},$(echo "$camera_url" | tr ',' ';'),${avg_cpu},${avg_memory},${avg_gpu_util},${avg_gpu_mem},${avg_enc_util},${avg_dec_util},${system_cpu_usage},${rx_mb},${tx_mb},${speed_ratio},${avg_bitrate},${actual_duration},${success},${error_msg}"
     echo "$csv_line" >> "$CSV_FILE"
+    
+    # Check output files for quality verification
+    if [[ -f "$output_mp4" ]]; then
+        local file_size=$(du -h "$output_mp4" | cut -f1)
+        debug_log "Output MP4 created: $output_mp4 (${file_size})"
+    fi
+    
+    if ls "${test_temp_dir}"/segment_*.ts 1> /dev/null 2>&1; then
+        local segment_count=$(ls -1 "${test_temp_dir}"/segment_*.ts | wc -l)
+        debug_log "HLS segments created: $segment_count files"
+    fi
     
     # Return success status
     return $success
@@ -635,8 +644,12 @@ main() {
     echo "  # View results table:"
     echo "  column -t -s, $CSV_FILE | less -S"
     echo ""
-    echo "  # Check NVENC session usage:"
-    echo "  nvidia-smi encodersessions"
+    echo "  # Check output files for quality:"
+    echo "  ls -lah ${TEMP_DIR}/test_*/output_*.mp4"
+    echo "  ls -lah ${TEMP_DIR}/test_*/segment_*.ts"
+    echo ""
+    echo "  # Play a sample output (if VLC installed):"
+    echo "  vlc ${TEMP_DIR}/test_1_1/output_1.mp4"
     echo ""
     echo "  # Monitor GPU in real-time:"
     echo "  watch -n 1 'nvidia-smi --query-gpu=name,utilization.gpu,utilization.encoder,utilization.decoder,encoder.stats.sessionCount,memory.used,temperature.gpu,power.draw --format=csv'"
