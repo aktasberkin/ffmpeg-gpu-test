@@ -19,11 +19,14 @@ CONCURRENT_TESTS=(2 5 10 20 30)  # Test with different concurrent counts
 DEFAULT_GPU=0
 DEFAULT_CODEC="h264_nvenc"
 
-# Low bitrate settings (matching CPU CRF 36)
-GPU_CQ=${GPU_CQ:-36}  # Constant Quality (36 = balanced, 42 = smaller files)
-GPU_PRESET="p4"  # p4 = medium equivalent
-GPU_BITRATE="500k"  # Target bitrate
-GPU_MAXRATE="750k"  # Max bitrate
+# Maximum compression settings for 100-200KB segments (6 seconds each)
+# Target: 100-200KB = ~133-267 kbps effective bitrate
+GPU_CQ=${GPU_CQ:-45}  # Constant Quality (45 = maximum compression, 42 = high compression)
+GPU_PRESET="p6"  # p6 = slower preset for better compression efficiency
+GPU_BITRATE="200k"  # Target bitrate - significantly reduced for small segments
+GPU_MAXRATE="250k"  # Max bitrate - kept close to target for consistent sizes
+GPU_BUFSIZE="125k"  # Small buffer size forces aggressive compression
+GPU_RESOLUTION="854x480"  # Reduced resolution for better compression (was 1280x720)
 SEGMENT_TIME=6  # HLS segment duration
 
 # Global variables
@@ -85,7 +88,7 @@ check_gpu_capabilities() {
     fi
     
     log "${GREEN}✓ NVENC support confirmed${NC}"
-    log "${MAGENTA}Low-bitrate mode: CQ=$GPU_CQ, Bitrate=$GPU_BITRATE${NC}"
+    log "${MAGENTA}Maximum compression mode: CQ=$GPU_CQ, Bitrate=$GPU_BITRATE, Resolution=$GPU_RESOLUTION${NC}"
 }
 
 # Setup function
@@ -246,7 +249,41 @@ run_single_lowbitrate_test() {
     local playlist_file="${test_temp_dir}/playlist.m3u8"
     local segment_prefix="${test_temp_dir}/segment"
     
-    # Build FFmpeg command with low bitrate settings
+    # Build FFmpeg command with maximum compression settings
+    # 
+    # COMPRESSION OPTIMIZATION EXPLANATIONS:
+    # =====================================
+    # 
+    # 1. RESOLUTION REDUCTION (854x480 vs 1280x720):
+    #    - Reduces pixel count by ~55%, directly impacting file size
+    #    - Still maintains 16:9 aspect ratio for compatibility
+    # 
+    # 2. RATE CONTROL (CBR vs constqp):
+    #    - CBR (Constant Bitrate) provides more predictable file sizes
+    #    - constqp can vary widely in output size
+    # 
+    # 3. CONSTANT QUALITY (CQ=45):
+    #    - Higher CQ values = more compression/smaller files
+    #    - CQ 45 provides maximum compression with acceptable quality loss
+    #    - Trade-off: Lower visual quality for smaller file sizes
+    # 
+    # 4. BITRATE SETTINGS (200k target, 250k max):
+    #    - Significantly reduced from 500k/750k to achieve target file sizes
+    #    - 200kbps * 6 seconds = ~150KB theoretical minimum
+    #    - Small buffer (125k) prevents bitrate spikes
+    # 
+    # 5. GOP SIZE (60 vs 120):
+    #    - Smaller GOP = more I-frames = better compression efficiency
+    #    - More frequent keyframes help with rate control
+    # 
+    # 6. B-FRAMES AND REFERENCES:
+    #    - bf 3: Uses 3 B-frames for better compression
+    #    - refs 3: Uses 3 reference frames for motion prediction
+    #    - Both improve compression efficiency at cost of encoding time
+    # 
+    # 7. PRESET (p6 vs p4):
+    #    - p6 = slower encoding but better compression efficiency
+    #    - More thorough motion estimation and rate-distortion optimization
     local ffmpeg_cmd="ffmpeg -hide_banner -loglevel info \
         -rtsp_transport tcp \
         -stimeout 10000000 \
@@ -257,15 +294,17 @@ run_single_lowbitrate_test() {
         -hwaccel_output_format cuda \
         -i \"$camera_url\" \
         -t $TEST_DURATION \
-        -vf \"scale_cuda=1280:720\" \
+        -vf \"scale_cuda=${GPU_RESOLUTION}\" \
         -c:v $DEFAULT_CODEC \
         -preset $GPU_PRESET \
-        -rc constqp \
+        -rc cbr \
         -cq $GPU_CQ \
         -b:v $GPU_BITRATE \
         -maxrate $GPU_MAXRATE \
-        -bufsize 1M \
-        -g 120 \
+        -bufsize $GPU_BUFSIZE \
+        -g 60 \
+        -bf 3 \
+        -refs 3 \
         -gpu $DEFAULT_GPU \
         -an \
         -f hls \
@@ -275,7 +314,7 @@ run_single_lowbitrate_test() {
         -hls_segment_filename \"${segment_prefix}_%03d.ts\" \
         \"$playlist_file\""
     
-    debug_log "Starting FFmpeg with CQ=$GPU_CQ, Bitrate=$GPU_BITRATE"
+    debug_log "Starting FFmpeg with maximum compression: CQ=$GPU_CQ, Bitrate=$GPU_BITRATE, Resolution=$GPU_RESOLUTION"
     
     # Start GPU monitoring
     monitor_gpu "$gpu_monitor_file" "$TEST_DURATION" &
@@ -409,7 +448,7 @@ run_concurrent_lowbitrate_test() {
     
     if [[ $total_segments -gt 0 ]]; then
         local avg_segment_size_kb=$(echo "scale=2; $total_size_mb * 1024 / $total_segments" | bc -l)
-        log "${GREEN}  Average segment size: ${avg_segment_size_kb}KB (Target: <1000KB for low bitrate)${NC}"
+        log "${GREEN}  Average segment size: ${avg_segment_size_kb}KB (Target: 100-200KB for maximum compression)${NC}"
     fi
 }
 
@@ -429,15 +468,15 @@ analyze_results() {
     done
     
     echo ""
-    echo "Comparison with CPU (CRF 36):"
-    echo "  CPU: ~1000-2000KB per 6s segment"
-    echo "  GPU: See above results"
+    echo "Comparison with targets:"
+    echo "  Target: 100-200KB per 6s segment (maximum compression)"
+    echo "  Current GPU results: See above"
     
-    if [[ $(echo "$GPU_CQ" | bc -l) -lt 40 ]]; then
-        echo ""
-        echo "${YELLOW}Tip: To reduce file size further, try:${NC}"
-        echo "  GPU_CQ=42 ./$(basename $0)"
-    fi
+    echo ""
+    echo "${YELLOW}Optimization tips:${NC}"
+    echo "  For even smaller files: GPU_CQ=48 ./$(basename $0)"
+    echo "  For higher quality: GPU_CQ=42 ./$(basename $0)"
+    echo "  For different resolution: GPU_RESOLUTION=\"640x360\" ./$(basename $0)"
 }
 
 # Main execution
@@ -447,12 +486,15 @@ main() {
     
     setup
     
-    log "Configuration:"
+    log "Configuration (Maximum Compression Mode):"
     log "  GPU: $DEFAULT_GPU"
     log "  Codec: $DEFAULT_CODEC"
-    log "  Quality (CQ): $GPU_CQ"
+    log "  Quality (CQ): $GPU_CQ (higher = more compression)"
     log "  Bitrate: $GPU_BITRATE (max: $GPU_MAXRATE)"
+    log "  Resolution: $GPU_RESOLUTION (reduced for compression)"
+    log "  Preset: $GPU_PRESET (slower for better compression)"
     log "  Segment time: ${SEGMENT_TIME}s"
+    log "  Target size: 100-200KB per segment"
     
     # Run tests
     for concurrent in "${CONCURRENT_TESTS[@]}"; do
