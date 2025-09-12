@@ -15,15 +15,20 @@ echo "Camera: $CAMERA_URL"
 echo "Duration: ${TEST_DURATION}s"
 echo ""
 
-# Test 1: CPU libx264 (Original working command)
+# Test 1: CPU libx264 (Original working command with RTSP fixes)
 echo "1. Testing CPU (libx264) - Original Command"
 echo "============================================"
 
-CPU_CMD="ffmpeg -loglevel info \
+CPU_CMD="timeout $((TEST_DURATION + 30)) ffmpeg -loglevel info \
+    -rtsp_transport tcp \
+    -stimeout 10000000 \
+    -analyzeduration 3000000 \
+    -probesize 5000000 \
     -i \"$CAMERA_URL\" \
     -t $TEST_DURATION \
     -vf scale=1280:720 \
     -c:v libx264 -crf 36 -preset medium \
+    -an \
     -f hls \
     -hls_time 6 \
     -hls_flags append_list \
@@ -51,12 +56,15 @@ else
     echo ""
 fi
 
-# Test 2: GPU h264_nvenc (Current script)
+# Test 2: GPU h264_nvenc (Current script with timeout)
 echo "2. Testing GPU (h264_nvenc) - Current Script"
 echo "============================================="
 
-GPU_CMD="ffmpeg -loglevel info \
+GPU_CMD="timeout $((TEST_DURATION + 30)) ffmpeg -loglevel info \
     -rtsp_transport tcp \
+    -stimeout 10000000 \
+    -analyzeduration 3000000 \
+    -probesize 5000000 \
     -hwaccel cuda \
     -hwaccel_output_format cuda \
     -i \"$CAMERA_URL\" \
@@ -105,8 +113,11 @@ fi
 echo "3. Testing GPU (h264_nvenc) - CPU Settings Equivalent"
 echo "====================================================="
 
-GPU_CPU_EQUIV_CMD="ffmpeg -loglevel info \
+GPU_CPU_EQUIV_CMD="timeout $((TEST_DURATION + 30)) ffmpeg -loglevel info \
     -rtsp_transport tcp \
+    -stimeout 10000000 \
+    -analyzeduration 3000000 \
+    -probesize 5000000 \
     -hwaccel cuda \
     -hwaccel_output_format cuda \
     -i \"$CAMERA_URL\" \
