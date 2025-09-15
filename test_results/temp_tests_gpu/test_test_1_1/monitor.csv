@@ -1,0 +1,2 @@
+timestamp,gpu_util,gpu_mem_used,gpu_mem_total,encoder_sessions,cpu_percent,ram_mb
+2025-09-11 12:09:23,0,1,46068,0,0.0,198090

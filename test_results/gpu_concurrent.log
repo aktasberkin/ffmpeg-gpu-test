@@ -1,0 +1,28 @@
+[2025-09-11 12:09:23] Checking GPU availability...
+[2025-09-11 12:09:23] GPU detected: NVIDIA L40S, 46068, 45469, 0, 0
+[2025-09-11 12:09:23] \033[0;32m✓\033[0m GPU and NVENC encoder available
+[2025-09-11 12:09:23] Generating test stream URLs...
+[2025-09-11 12:09:23] Generated 155 test stream sources
+[2025-09-11 12:09:23] System Information:
+[2025-09-11 12:09:23]   CPU: AMD EPYC 9354 32-Core Processor
+[2025-09-11 12:09:23]   RAM: 1.5Ti
+[2025-09-11 12:09:23]   GPU: NVIDIA L40S
+[2025-09-11 12:09:23]   FFmpeg: ffmpeg version 4.4.2-0ubuntu0.22.04.1 Copyright (c) 2000-2021 the FFmpeg developers
+[2025-09-11 12:09:23] Setup complete!
+[2025-09-11 12:09:23] Running warm-up test...
+[2025-09-11 12:09:23] \033[1;33mStarting concurrent GPU test: 1 streams\033[0m
+[2025-09-11 12:09:23] GPU state before test: 0, 1
+[2025-09-11 12:09:25] Concurrent test completed: 0/1 successful (0%)
+[2025-09-11 12:09:25] GPU state after test: 7, 1
+[2025-09-11 12:09:30] \n\033[0;34mTesting 50 concurrent streams\033[0m
+[2025-09-11 12:09:30] \033[1;33mStarting concurrent GPU test: 50 streams\033[0m
+[2025-09-11 12:09:30] GPU state before test: 0, 1
+[2025-09-11 12:09:34] Started 10/50 processes...
+[2025-09-11 12:09:38] Started 20/50 processes...
+[2025-09-11 12:09:42] Started 30/50 processes...
+[2025-09-11 12:09:46] Started 40/50 processes...
+[2025-09-11 12:09:49] Started 50/50 processes...
+[2025-09-11 12:10:45] Concurrent test completed: 9/50 successful (18.00%)
+[2025-09-11 12:10:45] GPU state after test: 2, 1
+[2025-09-11 12:10:50] \n\033[0;32mTesting completed!\033[0m
+[2025-09-11 12:10:50] Results saved to: ./test_results/gpu_concurrent_results.csv
