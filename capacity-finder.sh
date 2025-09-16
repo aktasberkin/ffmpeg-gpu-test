@@ -53,8 +53,8 @@ test_concurrent_capacity() {
     for ((i=0; i<stream_count; i++)); do
         local pattern="${patterns[$((i % ${#patterns[@]}))]}"
 
-        # Try to launch
-        if ! ffmpeg -f lavfi -i "$pattern" \
+        # Launch stream in background
+        ffmpeg -f lavfi -i "$pattern" \
             -t $TEST_DURATION \
             -c:v h264_nvenc \
             -preset p4 \
@@ -66,8 +66,18 @@ test_concurrent_capacity() {
             -hls_segment_filename "$test_dir/stream${i}_%03d.ts" \
             -hls_playlist_type vod \
             "$test_dir/stream${i}.m3u8" \
-            >"$test_dir/stream${i}.log" 2>&1 & then
+            >"$test_dir/stream${i}.log" 2>&1 &
 
+        local launch_pid=$!
+
+        # Check if process started successfully
+        sleep 0.1  # Give it time to start
+
+        if kill -0 $launch_pid 2>/dev/null; then
+            # Process is running
+            pids[i]=$launch_pid
+        else
+            # Process failed to start
             launch_failures=$((launch_failures + 1))
             echo "  Launch failure #$launch_failures at stream $i"
 
@@ -76,8 +86,6 @@ test_concurrent_capacity() {
                 echo "  ${RED}Too many launch failures, aborting test${NC}"
                 break
             fi
-        else
-            pids[i]=$!
         fi
 
         sleep 0.01
