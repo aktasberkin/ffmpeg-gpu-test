@@ -55,7 +55,7 @@ echo "timestamp,elapsed,active,gpu_util,gpu_mem,nvenc,cpu" > "$MONITOR_LOG"
 # Launch function with batch control
 launch_streams() {
     local pids=()
-    local patterns=("testsrc2=size=1280x720:rate=30" "smptebars=size=1280x720:rate=30" "mandelbrot=size=1280x720:rate=30" "plasma=size=1280x720:rate=30")
+    local patterns=("testsrc2=size=1280x720:rate=30" "smptebars=size=1280x720:rate=30" "testsrc=size=1280x720:rate=30" "color=c=blue:size=1280x720:rate=30")
 
     echo "${YELLOW}=== Launching Streams ===${NC}"
 
