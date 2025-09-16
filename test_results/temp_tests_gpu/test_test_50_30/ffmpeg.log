@@ -1,17 +1,0 @@
-Input #0, lavfi, from 'testsrc2=duration=60:size=1920x1080:rate=30':
-  Duration: N/A, start: 0.000000, bitrate: N/A
-  Stream #0:0: Video: rawvideo (I420 / 0x30323449), yuv420p, 1920x1080 [SAR 1:1 DAR 16:9], 30 tbr, 30 tbn, 30 tbc
-Stream mapping:
-  Stream #0:0 -> #0:0 (rawvideo (native) -> h264 (h264_nvenc))
-Press [q] to stop, [?] for help
-Output #0, mp4, to './test_results/temp_tests_gpu/test_test_50_30/output.mp4':
-  Metadata:
-    encoder         : Lavf58.76.100
-  Stream #0:0: Video: h264 (Main) (avc1 / 0x31637661), yuv420p(tv, progressive), 1280x720 [SAR 1:1 DAR 16:9], q=2-31, 30 fps, 15360 tbn
-    Metadata:
-      encoder         : Lavc58.134.100 h264_nvenc
-    Side data:
-      cpb: bitrate max/min/avg: 3000000/0/0 buffer size: 4000000 vbv_delay: N/A
-frame=    1 fps=0.0 q=0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=N/A    frame=    2 fps=1.8 q=0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=   0x    frame=  107 fps= 67 q=26.0 size=     768kB time=00:00:03.46 bitrate=1814.9kbits/s speed=2.18x    frame=  207 fps= 99 q=26.0 size=    1792kB time=00:00:06.80 bitrate=2158.9kbits/s speed=3.25x    frame=  332 fps=128 q=26.0 size=    2816kB time=00:00:10.96 bitrate=2103.5kbits/s speed=4.23x    frame=  444 fps=144 q=26.0 size=    3840kB time=00:00:14.70 bitrate=2140.0kbits/s speed=4.75x    frame=  555 fps=154 q=26.0 size=    4864kB time=00:00:18.40 bitrate=2165.6kbits/s speed=5.12x    frame=  658 fps=161 q=26.0 size=    5632kB time=00:00:21.83 bitrate=2113.2kbits/s speed=5.33x    frame=  779 fps=169 q=26.0 size=    6656kB time=00:00:25.86 bitrate=2108.0kbits/s speed=5.63x    frame=  886 fps=174 q=26.0 size=    7680kB time=00:00:29.43 bitrate=2137.5kbits/s speed=5.77x    frame=  999 fps=177 q=26.0 size=    8704kB time=00:00:33.20 bitrate=2147.7kbits/s speed= 5.9x    frame= 1116 fps=182 q=26.0 size=    9728kB time=00:00:37.10 bitrate=2148.0kbits/s speed=6.05x    frame= 1253 fps=189 q=26.0 size=   11008kB time=00:00:41.66 bitrate=2164.3kbits/s speed=6.28x    frame= 1379 fps=193 q=26.0 size=   12032kB time=00:00:45.86 bitrate=2149.0kbits/s speed=6.42x    frame= 1516 fps=198 q=26.0 size=   13312kB time=00:00:50.43 bitrate=2162.3kbits/s speed= 6.6x    frame= 1650 fps=203 q=26.0 size=   14592kB time=00:00:54.90 bitrate=2177.4kbits/s speed=6.74x    frame= 1797 fps=208 q=26.0 size=   15872kB time=00:00:59.80 bitrate=2174.3kbits/s speed=6.92x    [mp4 @ 0x565bcdd35580] Starting second pass: moving the moov atom to the beginning of the file
-frame= 1800 fps=204 q=26.0 Lsize=   15957kB time=00:00:59.96 bitrate=2179.9kbits/s speed=6.79x    
-video:15949kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 0.051464%

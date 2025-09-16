@@ -1,0 +1,45 @@
+# Test outputs and results
+test_results/
+gpu_test_*/
+concurrent_test_*/
+pool_test_*/
+robust_test_*/
+
+# Video files
+*.mp4
+*.ts
+*.m3u8
+*.mkv
+*.avi
+*.mov
+*.webm
+
+# Test video directories
+test_videos/
+codec_comparison_result/
+
+# Temporary files
+temp_tests_*/
+*.tmp
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Monitoring outputs
+*.csv
+monitor_*.log
+gpu_metrics.log
+
+# Large test data
+expanded_test_sources.txt
+mixed_test_sources.txt
+
+# Camera files (privacy)
+cameras_test.txt
+camera-test/
+
+# Generated test sources
+test_file_sources.txt
+rtsp_test_sources.txt

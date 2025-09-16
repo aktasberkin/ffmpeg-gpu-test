@@ -1,3 +1,0 @@
-[Parsed_mandelbrot_0 @ 0x61f1ce617a40] Option 'duration' not found
-[lavfi @ 0x61f1ce600540] Error initializing filter 'mandelbrot' with args 'duration=60:size=1920x1080:rate=30'
-mandelbrot=duration=60:size=1920x1080:rate=30: Option not found

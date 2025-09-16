@@ -1,17 +1,0 @@
-Input #0, lavfi, from 'smptebars=duration=60:size=1920x1080:rate=30':
-  Duration: N/A, start: 0.000000, bitrate: N/A
-  Stream #0:0: Video: rawvideo (I420 / 0x30323449), yuv420p, 1920x1080 [SAR 1:1 DAR 16:9], 30 tbr, 30 tbn, 30 tbc
-Stream mapping:
-  Stream #0:0 -> #0:0 (rawvideo (native) -> h264 (h264_nvenc))
-Press [q] to stop, [?] for help
-Output #0, mp4, to './test_results/temp_tests_gpu/test_test_50_41/output.mp4':
-  Metadata:
-    encoder         : Lavf58.76.100
-  Stream #0:0: Video: h264 (Main) (avc1 / 0x31637661), yuv420p(tv, progressive), 1280x720 [SAR 1:1 DAR 16:9], q=2-31, 30 fps, 15360 tbn
-    Metadata:
-      encoder         : Lavc58.134.100 h264_nvenc
-    Side data:
-      cpb: bitrate max/min/avg: 3000000/0/0 buffer size: 4000000 vbv_delay: N/A
-frame=    1 fps=0.0 q=0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=N/A    frame=    2 fps=0.3 q=0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=   0x    frame=  171 fps= 23 q=23.0 size=       0kB time=00:00:05.60 bitrate=   0.1kbits/s speed=0.748x    frame=  354 fps= 44 q=23.0 size=       0kB time=00:00:11.70 bitrate=   0.0kbits/s speed=1.46x    frame=  501 fps= 59 q=23.0 size=       0kB time=00:00:16.60 bitrate=   0.0kbits/s speed=1.96x    frame=  652 fps= 73 q=23.0 size=       0kB time=00:00:21.63 bitrate=   0.0kbits/s speed=2.41x    frame=  819 fps= 86 q=23.0 size=       0kB time=00:00:27.20 bitrate=   0.0kbits/s speed=2.87x    frame=  992 fps= 99 q=23.0 size=       0kB time=00:00:32.96 bitrate=   0.0kbits/s speed= 3.3x    frame= 1164 fps=111 q=23.0 size=       0kB time=00:00:38.70 bitrate=   0.0kbits/s speed=3.69x    frame= 1347 fps=123 q=23.0 size=       0kB time=00:00:44.80 bitrate=   0.0kbits/s speed=4.07x    frame= 1523 fps=132 q=23.0 size=       0kB time=00:00:50.66 bitrate=   0.0kbits/s speed=4.41x    frame= 1699 fps=142 q=23.0 size=       0kB time=00:00:56.53 bitrate=   0.0kbits/s speed=4.71x    [mp4 @ 0x636bf0064740] Starting second pass: moving the moov atom to the beginning of the file
-frame= 1800 fps=146 q=23.0 Lsize=     142kB time=00:00:59.96 bitrate=  19.4kbits/s speed=4.87x    
-video:134kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 5.963520%

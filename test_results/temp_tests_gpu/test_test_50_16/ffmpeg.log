@@ -1,17 +1,0 @@
-Input #0, lavfi, from 'smptebars=duration=60:size=1920x1080:rate=30':
-  Duration: N/A, start: 0.000000, bitrate: N/A
-  Stream #0:0: Video: rawvideo (I420 / 0x30323449), yuv420p, 1920x1080 [SAR 1:1 DAR 16:9], 30 tbr, 30 tbn, 30 tbc
-Stream mapping:
-  Stream #0:0 -> #0:0 (rawvideo (native) -> h264 (h264_nvenc))
-Press [q] to stop, [?] for help
-Output #0, mp4, to './test_results/temp_tests_gpu/test_test_50_16/output.mp4':
-  Metadata:
-    encoder         : Lavf58.76.100
-  Stream #0:0: Video: h264 (Main) (avc1 / 0x31637661), yuv420p(tv, progressive), 1280x720 [SAR 1:1 DAR 16:9], q=2-31, 30 fps, 15360 tbn
-    Metadata:
-      encoder         : Lavc58.134.100 h264_nvenc
-    Side data:
-      cpb: bitrate max/min/avg: 3000000/0/0 buffer size: 4000000 vbv_delay: N/A
-frame=    1 fps=0.0 q=0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=N/A    frame=    2 fps=1.3 q=0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=   0x    frame=  238 fps=117 q=23.0 size=       0kB time=00:00:07.83 bitrate=   0.0kbits/s speed=3.86x    frame=  460 fps=182 q=23.0 size=       0kB time=00:00:15.23 bitrate=   0.0kbits/s speed=6.02x    frame=  669 fps=221 q=23.0 size=       0kB time=00:00:22.20 bitrate=   0.0kbits/s speed=7.33x    frame=  879 fps=249 q=23.0 size=       0kB time=00:00:29.20 bitrate=   0.0kbits/s speed=8.27x    frame= 1065 fps=263 q=23.0 size=       0kB time=00:00:35.40 bitrate=   0.0kbits/s speed=8.74x    frame= 1239 fps=272 q=23.0 size=       0kB time=00:00:41.20 bitrate=   0.0kbits/s speed=9.06x    frame= 1441 fps=285 q=23.0 size=       0kB time=00:00:47.93 bitrate=   0.0kbits/s speed=9.49x    frame= 1636 fps=295 q=23.0 size=       0kB time=00:00:54.43 bitrate=   0.0kbits/s speed= 9.8x    frame= 1794 fps=296 q=23.0 size=       0kB time=00:00:59.70 bitrate=   0.0kbits/s speed=9.86x    [mp4 @ 0x560480866740] Starting second pass: moving the moov atom to the beginning of the file
-frame= 1800 fps=296 q=23.0 Lsize=     142kB time=00:00:59.96 bitrate=  19.4kbits/s speed=9.87x    
-video:134kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 5.963520%

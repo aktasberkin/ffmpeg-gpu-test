@@ -1,17 +1,0 @@
-Input #0, lavfi, from 'smptebars=duration=60:size=1920x1080:rate=30':
-  Duration: N/A, start: 0.000000, bitrate: N/A
-  Stream #0:0: Video: rawvideo (I420 / 0x30323449), yuv420p, 1920x1080 [SAR 1:1 DAR 16:9], 30 tbr, 30 tbn, 30 tbc
-Stream mapping:
-  Stream #0:0 -> #0:0 (rawvideo (native) -> h264 (h264_nvenc))
-Press [q] to stop, [?] for help
-Output #0, mp4, to './test_results/temp_tests_gpu/test_test_50_6/output.mp4':
-  Metadata:
-    encoder         : Lavf58.76.100
-  Stream #0:0: Video: h264 (Main) (avc1 / 0x31637661), yuv420p(tv, progressive), 1280x720 [SAR 1:1 DAR 16:9], q=2-31, 30 fps, 15360 tbn
-    Metadata:
-      encoder         : Lavc58.134.100 h264_nvenc
-    Side data:
-      cpb: bitrate max/min/avg: 3000000/0/0 buffer size: 4000000 vbv_delay: N/A
-frame=    1 fps=0.0 q=0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=   0x    frame=    2 fps=0.9 q=0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=   0x    frame=  105 fps= 38 q=23.0 size=       0kB time=00:00:03.40 bitrate=   0.1kbits/s speed=1.22x    frame=  324 fps= 98 q=23.0 size=       0kB time=00:00:10.70 bitrate=   0.0kbits/s speed=3.25x    frame=  573 fps=151 q=23.0 size=       0kB time=00:00:19.00 bitrate=   0.0kbits/s speed=   5x    frame=  816 fps=190 q=23.0 size=       0kB time=00:00:27.10 bitrate=   0.0kbits/s speed= 6.3x    frame= 1050 fps=219 q=23.0 size=       0kB time=00:00:34.90 bitrate=   0.0kbits/s speed=7.27x    frame= 1298 fps=245 q=23.0 size=       0kB time=00:00:43.16 bitrate=   0.0kbits/s speed=8.15x    frame= 1532 fps=264 q=23.0 size=       0kB time=00:00:50.96 bitrate=   0.0kbits/s speed=8.79x    frame= 1748 fps=277 q=23.0 size=       0kB time=00:00:58.16 bitrate=   0.0kbits/s speed=9.23x    [mp4 @ 0x59a845112740] Starting second pass: moving the moov atom to the beginning of the file
-frame= 1800 fps=279 q=23.0 Lsize=     142kB time=00:00:59.96 bitrate=  19.4kbits/s speed= 9.3x    
-video:134kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 5.963520%
