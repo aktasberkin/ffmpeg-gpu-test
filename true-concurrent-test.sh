@@ -87,8 +87,8 @@ monitor_streams() {
     local max_concurrent=0
 
     echo "${YELLOW}=== HIGH FREQUENCY MONITORING ===${NC}"
-    echo "Time | Active | Peak | GPU%  | VRAM  | NVENC | Status"
-    echo "-----+--------+------+-------+-------+-------+-------------"
+    echo "Time | Active | Peak | GPU%  | VRAM  | NVENC | CPU% | Status"
+    echo "-----+--------+------+-------+-------+-------+------+-------------"
 
     while true; do
         local current_time=$(date +%s)
@@ -121,8 +121,8 @@ monitor_streams() {
             status="${YELLOW}HIGH-CONCURRENT${NC}"
         fi
 
-        printf "%4ds | %6d | %4d | %4s%% | %4sMB | %5s | %s\\n" \
-            $elapsed $active $max_concurrent $gpu_util $gpu_mem $nvenc "$status"
+        printf "%4ds | %6d | %4d | %4s%% | %4sMB | %5s | %3s%% | %s\\n" \
+            $elapsed $active $max_concurrent $gpu_util $gpu_mem $nvenc $cpu "$status"
 
         # Log data
         echo "$(date +%s),$elapsed,$active,$gpu_util,$gpu_mem,$nvenc,$cpu" >> "$OUTPUT_DIR/monitoring.csv"
@@ -146,33 +146,114 @@ monitor_streams() {
     return $max_concurrent
 }
 
-# Results analysis
+# Results analysis with detailed metrics
 analyze_results() {
     local max_concurrent=$1
 
     echo ""
-    echo "${CYAN}=== CONCURRENCY ANALYSIS ===${NC}"
+    echo "${CYAN}=== COMPREHENSIVE ANALYSIS ===${NC}"
 
     local playlists=$(find "$OUTPUT_DIR" -name "*.m3u8" | wc -l)
+    local segments=$(find "$OUTPUT_DIR" -name "*.ts" | wc -l)
     local concurrency_rate=$(( max_concurrent * 100 / STREAM_COUNT ))
 
-    echo "Target streams: $STREAM_COUNT"
-    echo "Peak concurrent: $max_concurrent"
-    echo "Concurrency rate: $concurrency_rate%"
-    echo "Success rate: $(( playlists * 100 / STREAM_COUNT ))%"
+    echo "Stream Results:"
+    echo "  Target streams: $STREAM_COUNT"
+    echo "  Peak concurrent: $max_concurrent"
+    echo "  Concurrency rate: $concurrency_rate%"
+    echo "  Success rate: $(( playlists * 100 / STREAM_COUNT ))%"
+    echo "  Total segments: $segments"
 
+    # Segment analysis
+    if [ $segments -gt 0 ] && [ $playlists -gt 0 ]; then
+        local avg_segments_per_stream=$(( segments / playlists ))
+        echo "  Average segments per stream: $avg_segments_per_stream"
+
+        # Sample segment analysis
+        local sample_segment=$(find "$OUTPUT_DIR" -name "*.ts" | head -1)
+        if [ -n "$sample_segment" ]; then
+            local segment_size=$(stat -f%z "$sample_segment" 2>/dev/null || stat -c%s "$sample_segment" 2>/dev/null || echo "0")
+            local segment_size_kb=$(( segment_size / 1024 ))
+            echo "  Average segment size: ${segment_size_kb}KB"
+            echo "  Segment duration: 6 seconds (HLS setting)"
+        fi
+    fi
+
+    # Performance metrics from monitoring log
+    if [ -f "$OUTPUT_DIR/monitoring.csv" ]; then
+        echo ""
+        echo "Performance Metrics:"
+
+        # GPU utilization analysis
+        local avg_gpu=$(awk -F',' 'NR>1 && $4!="" {sum+=$4; count++} END {if(count>0) printf "%.1f", sum/count; else print "0"}' "$OUTPUT_DIR/monitoring.csv")
+        local peak_gpu=$(awk -F',' 'NR>1 && $4!="" {if($4>max) max=$4} END {print max+0}' "$OUTPUT_DIR/monitoring.csv")
+
+        # VRAM analysis
+        local avg_vram=$(awk -F',' 'NR>1 && $5!="" {sum+=$5; count++} END {if(count>0) printf "%.0f", sum/count; else print "0"}' "$OUTPUT_DIR/monitoring.csv")
+        local peak_vram=$(awk -F',' 'NR>1 && $5!="" {if($5>max) max=$5} END {print max+0}' "$OUTPUT_DIR/monitoring.csv")
+        local avg_vram_gb=$(echo "scale=1; $avg_vram / 1024" | bc -l 2>/dev/null || echo "0")
+        local peak_vram_gb=$(echo "scale=1; $peak_vram / 1024" | bc -l 2>/dev/null || echo "0")
+
+        # CPU analysis
+        local avg_cpu=$(awk -F',' 'NR>1 && $7!="" {sum+=$7; count++} END {if(count>0) printf "%.1f", sum/count; else print "0"}' "$OUTPUT_DIR/monitoring.csv")
+        local peak_cpu=$(awk -F',' 'NR>1 && $7!="" {if($7>max) max=$7} END {print max+0}' "$OUTPUT_DIR/monitoring.csv")
+
+        # NVENC sessions
+        local avg_nvenc=$(awk -F',' 'NR>1 && $6!="" {sum+=$6; count++} END {if(count>0) printf "%.1f", sum/count; else print "0"}' "$OUTPUT_DIR/monitoring.csv")
+        local peak_nvenc=$(awk -F',' 'NR>1 && $6!="" {if($6>max) max=$6} END {print max+0}' "$OUTPUT_DIR/monitoring.csv")
+
+        echo "  GPU Utilization:"
+        echo "    Average: ${avg_gpu}%"
+        echo "    Peak: ${peak_gpu}%"
+        echo "  GPU Memory (VRAM):"
+        echo "    Average: ${avg_vram}MB (${avg_vram_gb}GB)"
+        echo "    Peak: ${peak_vram}MB (${peak_vram_gb}GB)"
+        echo "  CPU Utilization:"
+        echo "    Average: ${avg_cpu}%"
+        echo "    Peak: ${peak_cpu}%"
+        echo "  NVENC Sessions:"
+        echo "    Average: ${avg_nvenc}"
+        echo "    Peak: ${peak_nvenc}"
+
+        # Performance efficiency analysis
+        echo ""
+        echo "Efficiency Analysis:"
+        if [ $(echo "$avg_gpu > 60" | bc -l 2>/dev/null || echo 0) -eq 1 ]; then
+            echo "  ${GREEN}✅ GPU WELL UTILIZED: ${avg_gpu}% average${NC}"
+        elif [ $(echo "$avg_gpu > 30" | bc -l 2>/dev/null || echo 0) -eq 1 ]; then
+            echo "  ${YELLOW}⚠️ GPU MODERATE: ${avg_gpu}% average - can handle more${NC}"
+        else
+            echo "  ${YELLOW}⚠️ GPU UNDERUTILIZED: ${avg_gpu}% average - increase load${NC}"
+        fi
+
+        if [ $(echo "$avg_cpu > 70" | bc -l 2>/dev/null || echo 0) -eq 1 ]; then
+            echo "  ${YELLOW}⚠️ CPU HIGH: ${avg_cpu}% average - near limit${NC}"
+        else
+            echo "  ${GREEN}✅ CPU BALANCED: ${avg_cpu}% average${NC}"
+        fi
+
+        # L40S specific analysis (48GB VRAM)
+        local vram_usage_percent=$(echo "scale=1; $peak_vram * 100 / 46068" | bc -l 2>/dev/null || echo "0")
+        echo "  ${GREEN}✅ VRAM USAGE: ${vram_usage_percent}% of L40S capacity${NC}"
+    fi
+
+    # Concurrency assessment
+    echo ""
     if [ $max_concurrent -eq $STREAM_COUNT ]; then
-        echo "${GREEN}✅ PERFECT: All $STREAM_COUNT streams ran simultaneously${NC}"
+        echo "${GREEN}✅ PERFECT CONCURRENCY: All $STREAM_COUNT streams ran simultaneously${NC}"
     elif [ $max_concurrent -ge $((STREAM_COUNT * 90 / 100)) ]; then
-        echo "${GREEN}✅ EXCELLENT: $concurrency_rate% concurrency${NC}"
+        echo "${GREEN}✅ EXCELLENT CONCURRENCY: $concurrency_rate% simultaneous execution${NC}"
+    elif [ $max_concurrent -ge $((STREAM_COUNT * 70 / 100)) ]; then
+        echo "${YELLOW}⚠️ GOOD CONCURRENCY: $concurrency_rate% simultaneous execution${NC}"
     else
-        echo "${YELLOW}⚠️ LIMITED: Only $concurrency_rate% concurrency${NC}"
+        echo "${YELLOW}⚠️ LIMITED CONCURRENCY: Only $concurrency_rate% simultaneous execution${NC}"
     fi
 
     echo ""
     echo "Generated files:"
     echo "  Monitor data: $OUTPUT_DIR/monitoring.csv"
     echo "  HLS outputs: $OUTPUT_DIR/stream*.m3u8"
+    echo "  Segment files: $OUTPUT_DIR/stream*_*.ts"
 }
 
 # Cleanup
