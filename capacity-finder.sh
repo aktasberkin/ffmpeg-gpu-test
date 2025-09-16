@@ -107,15 +107,13 @@ test_concurrent_capacity() {
     local gpu_mem=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ' || echo "0")
     local nvenc=$(nvidia-smi --query-gpu=encoder.stats.sessionCount --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ' || echo "0")
 
-    # Monitor progress with feedback
-    echo "  Running test..."
-    local elapsed=0
-    local monitor_interval=5
+    # Monitor until all processes complete or timeout
+    echo "  Running test (monitoring until completion)..."
+    local start_time=$(date +%s)
+    local monitor_interval=2
+    local max_wait=$((TEST_DURATION + 15))  # Max wait is test duration + 15s
 
-    while [ $elapsed -lt $TEST_DURATION ]; do
-        sleep $monitor_interval
-        elapsed=$((elapsed + monitor_interval))
-
+    while true; do
         # Count still active
         local still_active=0
         for pid in "${pids[@]}"; do
@@ -127,14 +125,42 @@ test_concurrent_capacity() {
         # Get current metrics
         local current_gpu=$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ' || echo "0")
         local current_mem=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ' || echo "0")
+        local current_nvenc=$(nvidia-smi --query-gpu=encoder.stats.sessionCount --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ' || echo "0")
 
-        printf "    [%d/%ds] Active: %d/%d, GPU: %s%%, VRAM: %sMB\r" \
-            $elapsed $TEST_DURATION $still_active $active $current_gpu $current_mem
+        # Calculate elapsed time
+        local current_time=$(date +%s)
+        local elapsed=$((current_time - start_time))
+
+        # Update metrics if higher
+        if [ $current_gpu -gt $gpu_util ]; then
+            gpu_util=$current_gpu
+        fi
+        if [ $current_mem -gt $gpu_mem ]; then
+            gpu_mem=$current_mem
+        fi
+        if [ $current_nvenc -gt $nvenc ]; then
+            nvenc=$current_nvenc
+        fi
+
+        printf "    [%ds] Active: %d/%d, GPU: %s%% (peak:%s%%), VRAM: %sMB (peak:%sMB), NVENC: %s\r" \
+            $elapsed $still_active $active $current_gpu $gpu_util $current_mem $gpu_mem $current_nvenc
+
+        # Check if all processes completed
+        if [ $still_active -eq 0 ]; then
+            echo ""  # New line
+            echo "  All processes completed in ${elapsed}s"
+            break
+        fi
+
+        # Check for timeout
+        if [ $elapsed -gt $max_wait ]; then
+            echo ""  # New line
+            echo "  Timeout reached (${max_wait}s), stopping remaining processes"
+            break
+        fi
+
+        sleep $monitor_interval
     done
-
-    echo ""  # New line after progress
-    echo "  Finalizing..."
-    sleep 5  # Short final wait
 
     # Kill any remaining processes
     for pid in "${pids[@]}"; do
