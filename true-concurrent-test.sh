@@ -169,13 +169,32 @@ analyze_results() {
         local avg_segments_per_stream=$(( segments / playlists ))
         echo "  Average segments per stream: $avg_segments_per_stream"
 
-        # Sample segment analysis
-        local sample_segment=$(find "$OUTPUT_DIR" -name "*.ts" | head -1)
-        if [ -n "$sample_segment" ]; then
-            local segment_size=$(stat -f%z "$sample_segment" 2>/dev/null || stat -c%s "$sample_segment" 2>/dev/null || echo "0")
-            local segment_size_kb=$(( segment_size / 1024 ))
-            echo "  Average segment size: ${segment_size_kb}KB"
+        # Real average segment analysis
+        echo "  Calculating average segment size..."
+        local total_size=0
+        local segment_count=0
+
+        # Calculate total size of all segments
+        while IFS= read -r -d '' segment_file; do
+            if [ -f "$segment_file" ]; then
+                local size=$(stat -f%z "$segment_file" 2>/dev/null || stat -c%s "$segment_file" 2>/dev/null || echo "0")
+                total_size=$((total_size + size))
+                segment_count=$((segment_count + 1))
+            fi
+        done < <(find "$OUTPUT_DIR" -name "*.ts" -print0)
+
+        if [ $segment_count -gt 0 ]; then
+            local avg_segment_size=$(( total_size / segment_count ))
+            local avg_segment_size_kb=$(( avg_segment_size / 1024 ))
+            local avg_segment_size_mb=$(echo "scale=1; $avg_segment_size / 1048576" | bc -l 2>/dev/null || echo "0")
+            local total_size_mb=$(echo "scale=1; $total_size / 1048576" | bc -l 2>/dev/null || echo "0")
+
+            echo "  Average segment size: ${avg_segment_size_kb}KB (${avg_segment_size_mb}MB)"
+            echo "  Total segments analyzed: $segment_count"
+            echo "  Total output size: ${total_size_mb}MB"
             echo "  Segment duration: 6 seconds (HLS setting)"
+        else
+            echo "  No segments found for analysis"
         fi
     fi
 
