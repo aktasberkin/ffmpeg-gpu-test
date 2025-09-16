@@ -93,8 +93,8 @@ initialize_monitoring() {
     # Performance monitoring log
     echo "timestamp,elapsed,active_streams,completed_streams,gpu_util,gpu_mem_used,gpu_mem_total,nvenc_sessions,cpu_user,cpu_system,cpu_iowait,load_1m,ram_used,ram_total" > "$OUTPUT_DIR/performance.csv"
 
-    # Individual stream tracking
-    echo "stream_id,start_time,end_time,duration,status,fps,bitrate,segments,file_size" > "$OUTPUT_DIR/stream_results.csv"
+    # Individual stream tracking (using pipe separator to avoid CSV issues)
+    echo "stream_id|start_time|end_time|duration|status|fps|bitrate|segments|file_size" > "$OUTPUT_DIR/stream_results.csv"
 
     # System alerts log
     echo "timestamp,alert_type,severity,message,value,threshold" > "$OUTPUT_DIR/alerts.csv"
@@ -110,7 +110,7 @@ initialize_monitoring() {
     echo ""
 }
 
-# Launch production streams
+# Launch production streams with resource management
 launch_production_streams() {
     echo "${BLUE}=== Launching Production Streams ===${NC}"
 
@@ -118,46 +118,85 @@ launch_production_streams() {
     local start_times=()
     local patterns=("testsrc2=size=1280x720:rate=30" "smptebars=size=1280x720:rate=30" "mandelbrot=size=1280x720:rate=30:maxiter=100" "plasma=size=1280x720:rate=30")
 
+    # Check system limits
+    local max_processes=$(ulimit -u)
+    local available_processes=$((max_processes - $(ps aux | wc -l)))
+
+    if [ $STREAM_COUNT -gt $((available_processes / 2)) ]; then
+        echo "${YELLOW}⚠️ Warning: Requested $STREAM_COUNT streams may exceed system limits${NC}"
+        echo "Available process slots: $available_processes"
+        echo "Reducing to safe limit: $((available_processes / 2))"
+        STREAM_COUNT=$((available_processes / 2))
+    fi
+
     log "Starting launch sequence for $STREAM_COUNT streams"
 
-    for ((i=0; i<STREAM_COUNT; i++)); do
-        local pattern="${patterns[$((i % ${#patterns[@]}))]}"
-        local start_time=$(date +%s.%N)
+    # Batch processing to prevent fork bombing
+    local batch_size=10
+    local total_batches=$(( (STREAM_COUNT + batch_size - 1) / batch_size ))
 
-        # Launch FFmpeg with production settings
-        ffmpeg -f lavfi -i "$pattern" \
-            -t $TEST_DURATION \
-            -c:v h264_nvenc \
-            -preset $PRESET \
-            -cq $QUALITY_CQ \
-            -g 60 \
-            -keyint_min 60 \
-            -sc_threshold 0 \
-            -f hls \
-            -hls_time 6 \
-            -hls_list_size 0 \
-            -hls_segment_filename "$OUTPUT_DIR/streams/stream${i}_%05d.ts" \
-            -hls_playlist_type vod \
-            "$OUTPUT_DIR/streams/stream${i}.m3u8" \
-            -progress pipe:1 \
-            -nostats \
-            >"$OUTPUT_DIR/logs/stream${i}.log" 2>&1 &
+    echo "Launching in $total_batches batches of $batch_size streams each"
 
-        local pid=$!
-        pids[i]=$pid
-        start_times[i]=$start_time
-
-        # Log stream launch
-        echo "$i,$start_time,,,STARTING,0,0,0,0" >> "$OUTPUT_DIR/stream_results.csv"
-
-        # Progress indicator
-        if [ $((i % 10)) -eq 9 ]; then
-            printf "\r${CYAN}  Launched: %d/%d streams${NC}" $((i+1)) $STREAM_COUNT
+    for ((batch=0; batch<total_batches; batch++)); do
+        local batch_start=$((batch * batch_size))
+        local batch_end=$((batch_start + batch_size))
+        if [ $batch_end -gt $STREAM_COUNT ]; then
+            batch_end=$STREAM_COUNT
         fi
 
-        # Prevent system overload during launch
-        if [ $((i % 25)) -eq 0 ] && [ $i -gt 0 ]; then
-            sleep 0.1
+        echo "${CYAN}Batch $((batch+1))/$total_batches: Launching streams $batch_start-$((batch_end-1))${NC}"
+
+        # Launch streams in current batch
+        for ((i=batch_start; i<batch_end; i++)); do
+            local pattern="${patterns[$((i % ${#patterns[@]}))]}"
+            local start_time=$(date +%s.%N)
+
+            # Launch FFmpeg with production settings
+            ffmpeg -f lavfi -i "$pattern" \
+                -t $TEST_DURATION \
+                -c:v h264_nvenc \
+                -preset $PRESET \
+                -cq $QUALITY_CQ \
+                -g 60 \
+                -keyint_min 60 \
+                -sc_threshold 0 \
+                -f hls \
+                -hls_time 6 \
+                -hls_list_size 0 \
+                -hls_segment_filename "$OUTPUT_DIR/streams/stream${i}_%05d.ts" \
+                -hls_playlist_type vod \
+                "$OUTPUT_DIR/streams/stream${i}.m3u8" \
+                -progress pipe:1 \
+                -nostats \
+                >"$OUTPUT_DIR/logs/stream${i}.log" 2>&1 &
+
+            local pid=$!
+            pids[i]=$pid
+            start_times[i]=$start_time
+
+            # Log stream launch (escape commas in start_time)
+            echo "$i|$start_time|||STARTING|0|0|0|0" >> "$OUTPUT_DIR/stream_results.csv"
+
+            # Small delay between individual launches
+            sleep 0.02
+        done
+
+        # Wait between batches to let system stabilize
+        if [ $batch -lt $((total_batches - 1)) ]; then
+            echo "  Waiting for batch to stabilize..."
+            sleep 2
+
+            # Check if any processes failed in this batch
+            local failed=0
+            for ((i=batch_start; i<batch_end; i++)); do
+                if ! kill -0 ${pids[i]} 2>/dev/null; then
+                    failed=$((failed + 1))
+                fi
+            done
+
+            if [ $failed -gt 0 ]; then
+                echo "${YELLOW}⚠️ $failed processes failed in batch $((batch+1))${NC}"
+            fi
         fi
     done
 
@@ -195,16 +234,17 @@ comprehensive_monitoring() {
                 active=$((active + 1))
                 active_pids+=(${pids[i]})
             else
-                # Check if completion was already logged
-                if ! grep -q "^$i,.*,.*,.*,COMPLETED," "$OUTPUT_DIR/stream_results.csv"; then
+                # Check if completion was already logged (using pipe separator)
+                if ! grep -q "^$i|.*|.*|.*|COMPLETED|" "$OUTPUT_DIR/stream_results.csv"; then
                     local end_time=$(date +%s.%N)
                     local duration=$(echo "$end_time - ${start_times[i]}" | bc -l 2>/dev/null || echo "0")
 
                     # Analyze stream results
                     local stream_analysis=$(analyze_stream_completion $i "$duration")
 
-                    # Update stream results
-                    sed -i "s/^$i,${start_times[i]},,,STARTING,.*/$i,${start_times[i]},$end_time,$duration,COMPLETED,$stream_analysis/" "$OUTPUT_DIR/stream_results.csv"
+                    # Update stream results (using pipe separator to avoid sed issues)
+                    local start_time_escaped="${start_times[i]}"
+                    sed -i "s|^$i|${start_time_escaped}|||STARTING|.*|$i|${start_time_escaped}|$end_time|$duration|COMPLETED|$stream_analysis|" "$OUTPUT_DIR/stream_results.csv"
 
                     completed=$((completed + 1))
                 fi
