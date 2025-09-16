@@ -107,9 +107,34 @@ test_concurrent_capacity() {
     local gpu_mem=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ' || echo "0")
     local nvenc=$(nvidia-smi --query-gpu=encoder.stats.sessionCount --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ' || echo "0")
 
-    # Wait for test completion
-    echo "  Waiting for completion..."
-    sleep $((TEST_DURATION + 10))
+    # Monitor progress with feedback
+    echo "  Running test..."
+    local elapsed=0
+    local monitor_interval=5
+
+    while [ $elapsed -lt $TEST_DURATION ]; do
+        sleep $monitor_interval
+        elapsed=$((elapsed + monitor_interval))
+
+        # Count still active
+        local still_active=0
+        for pid in "${pids[@]}"; do
+            if [ -n "$pid" ] && kill -0 $pid 2>/dev/null; then
+                still_active=$((still_active + 1))
+            fi
+        done
+
+        # Get current metrics
+        local current_gpu=$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ' || echo "0")
+        local current_mem=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ' || echo "0")
+
+        printf "    [%d/%ds] Active: %d/%d, GPU: %s%%, VRAM: %sMB\r" \
+            $elapsed $TEST_DURATION $still_active $active $current_gpu $current_mem
+    done
+
+    echo ""  # New line after progress
+    echo "  Finalizing..."
+    sleep 5  # Short final wait
 
     # Kill any remaining processes
     for pid in "${pids[@]}"; do
